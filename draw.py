@@ -6,7 +6,7 @@ Facts are from live news search for 23 November 2026 only."""
 
 import math
 import os
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 W, H = 1024, 1024
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "entry.png")
@@ -66,23 +66,96 @@ d.text((hx, hy + 96), "COLLAPSE", font=f_head, fill=INK)
 f_sub = font(LIB + "LiberationSans-Regular.ttf", 24)
 d.text((hx, hy + 170), "Climate deal fails as nations split over fossil fuels", font=f_sub, fill=MUTED)
 
-# cracked globe illustration (right of the hero text)
+# rich globe illustration (right of the hero text): a proper Earth with a
+# radial-gradient ocean, recognisable continents, graticule arcs, cracks,
+# embers and a smoke plume — the "collapse" made visible.
 cx, cy, r = 840, 280, 105
+OCEAN_DARK = (14, 52, 110)       # ocean at the limb
+OCEAN_LIGHT = (74, 144, 208)     # ocean near the light (upper left)
+LAND_DARK = (28, 88, 38)
+GRAT = (150, 195, 230)
+CRACK = (22, 18, 16)
+EMBER = (235, 125, 25)
+EMBER_RED = (205, 45, 35)
+
+# soft drop shadow under the globe
+shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+sd = ImageDraw.Draw(shadow)
+sd.ellipse([cx - r + 8, cy - r + 10, cx + r + 8, cy + r + 10], fill=(0, 0, 0, 55))
+shadow = shadow.filter(ImageFilter.GaussianBlur(8))
+img.paste(shadow, (0, 0), shadow)
+
 layer = Image.new("RGBA", (2 * r + 8, 2 * r + 8), (0, 0, 0, 0))
 ld = ImageDraw.Draw(layer)
-ld.ellipse([4, 4, 2 * r + 4, 2 * r + 4], fill=OCEAN + (255,))
-ld.ellipse([30, 40, 95, 95], fill=LAND + (255,))
-ld.ellipse([110, 110, 185, 175], fill=LAND + (255,))
-ld.ellipse([120, 35, 165, 70], fill=LAND + (255,))
-ld.ellipse([45, 130, 90, 165], fill=LAND + (255,))
+gx, gy = r + 4, r + 4            # globe centre in layer coords
+hx, hy = gx - 28, gy - 32        # light source (upper left)
+# ocean: deep colour over the whole disc, then a radial gradient toward
+# the light, so the sphere reads round instead of flat.
+ld.ellipse([4, 4, 2 * r + 4, 2 * r + 4], fill=OCEAN_DARK + (255,))
+for rr in range(r, 0, -2):
+    t = (rr / r) ** 0.75
+    col = tuple(round(OCEAN_LIGHT[i] + (OCEAN_DARK[i] - OCEAN_LIGHT[i]) * t)
+                for i in range(3))
+    ld.ellipse([hx - rr, hy - rr, hx + rr, hy + rr], fill=col + (255,))
+
+# continents (points relative to the globe centre)
+CONTINENTS = [
+    [(-85, -55), (-60, -78), (-35, -82), (-18, -68), (-22, -48), (-38, -42),
+     (-45, -28), (-58, -35), (-70, -20), (-82, -32)],            # North America
+    [(-15, -88), (2, -92), (8, -80), (-6, -76)],                 # Greenland
+    [(-45, -5), (-28, -12), (-12, -2), (-8, 18), (-18, 38), (-32, 48),
+     (-42, 30), (-48, 10)],                                       # South America
+    [(12, -38), (32, -48), (52, -40), (58, -18), (48, 8), (32, 28),
+     (16, 18), (8, -12)],                                         # Africa
+    [(8, -62), (24, -72), (40, -66), (36, -50), (20, -52)],      # Europe
+    [(55, -60), (85, -55), (100, -35), (95, -10), (70, -15), (58, -38)],  # Asia
+    [(62, 45), (82, 40), (92, 55), (75, 68), (60, 60)],          # Australia
+]
+for pts in CONTINENTS:
+    dark = [(gx + px, gy + py) for px, py in pts]
+    main = [(gx + px - 2, gy + py - 2) for px, py in pts]
+    ld.polygon(dark, fill=LAND_DARK + (255,))
+    ld.polygon(main, fill=LAND + (255,), outline=LAND_DARK + (255,))
+
+# graticule: pale latitude lines + longitude ellipses
+for dy in (-52, 0, 52):
+    ld.line([4, gy + dy, 2 * r + 4, gy + dy], fill=GRAT + (255,), width=1)
+for rx in (35, 70):
+    ld.ellipse([gx - rx, 4, gx + rx, 2 * r + 4], outline=GRAT + (255,), width=1)
+ld.line([gx, 4, gx, 2 * r + 4], fill=GRAT + (255,), width=1)
+
+# cracks radiating across the globe
+cracks = [
+    ([(-30, -95), (-12, -60), (-28, -25), (-2, 10), (-22, 48), (-5, 90)], 6),
+    ([(35, -70), (52, -38), (34, -8), (55, 22)], 5),
+    ([(-75, 15), (-55, 38), (-70, 62)], 5),
+]
+for pts, w in cracks:
+    ld.line([(gx + px, gy + py) for px, py in pts], fill=CRACK + (255,),
+            width=w, joint="curve")
+# embers glowing along the cracks
+ld.polygon([(gx - 17, gy - 65), (gx - 7, gy - 65), (gx - 12, gy - 55)],
+           fill=EMBER + (255,))
+ld.polygon([(gx - 7, gy + 5), (gx + 3, gy + 5), (gx - 2, gy + 15)],
+           fill=EMBER + (255,))
+ld.ellipse([gx + 48, gy - 42, gx + 56, gy - 34], fill=EMBER_RED + (255,))
+ld.ellipse([gx - 26, gy - 28, gx - 20, gy - 22], fill=EMBER + (255,))
+ld.ellipse([gx + 40, gy + 12, gx + 46, gy + 18], fill=EMBER_RED + (255,))
+
 mask = Image.new("L", (2 * r + 8, 2 * r + 8), 0)
 md = ImageDraw.Draw(mask)
 md.ellipse([4, 4, 2 * r + 4, 2 * r + 4], fill=255)
 img.paste(layer, (cx - r - 4, cy - r - 4), mask)
 d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=INK, width=3)
-crack = [(cx - 15, cy - r + 8), (cx + 6, cy - 58), (cx - 12, cy - 18),
-         (cx + 14, cy + 16), (cx - 6, cy + 56), (cx + 10, cy + r - 10)]
-d.line(crack, fill=INK, width=6, joint="curve")
+
+# smoke plume rising from the top of the globe, drifting up-left
+smoke = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+sm = ImageDraw.Draw(smoke)
+sm.ellipse([818 - 12, 186 - 12, 818 + 12, 186 + 12], fill=(150, 150, 150, 130))
+sm.ellipse([795 - 13, 174 - 13, 795 + 13, 174 + 13], fill=(160, 160, 160, 105))
+sm.ellipse([774 - 9, 164 - 9, 774 + 9, 164 + 9], fill=(170, 170, 170, 80))
+smoke = smoke.filter(ImageFilter.GaussianBlur(3))
+img.paste(smoke, (0, 0), smoke)
 
 # ---------------------------------------------------------------- section header
 d.text((24, 392), "AROUND THE WORLD", font=font(DJV + "DejaVuSans-Bold.ttf", 24), fill=INK)
@@ -118,6 +191,9 @@ def icon_tanker(dr, x, y, s):
     # water
     dr.line([x, y + 74, x + 84, y + 74], fill=OCEAN, width=3)
     dr.line([x + 8, y + 80, x + 76, y + 80], fill=OCEAN, width=2)
+    # wake trailing behind the stern
+    dr.line([x + 2, y + 68, x - 6, y + 74], fill=(140, 180, 220), width=2)
+    dr.line([x + 6, y + 72, x - 2, y + 78], fill=(140, 180, 220), width=2)
 
 
 def icon_flats(dr, x, y, s):
@@ -129,10 +205,15 @@ def icon_flats(dr, x, y, s):
     # broken corner: jagged dark bite out of the top right
     dr.polygon([(x + 66, y + 14), (x + 66, y + 34), (x + 54, y + 26),
                 (x + 58, y + 14)], fill=(40, 40, 40))
+    # jagged notch broken out of the top edge
+    dr.polygon([(x + 28, y + 14), (x + 34, y + 22), (x + 40, y + 14)], fill=CARD_BG)
     dr.polygon([(x + 50, y + 68), (x + 58, y + 76), (x + 66, y + 68),
                 (x + 74, y + 76), (x + 82, y + 68)], fill=(100, 100, 100))
     # small flame at the damage
     dr.polygon([(x + 58, y + 14), (x + 62, y + 4), (x + 66, y + 14)], fill=(230, 120, 20))
+    # smoke column rising from the damage
+    dr.ellipse([x + 57, y - 2, x + 69, y + 10], fill=(150, 150, 150))
+    dr.ellipse([x + 61, y - 6, x + 71, y + 4], fill=(170, 170, 170))
 
 
 def icon_warship(dr, x, y, s):
@@ -148,6 +229,11 @@ def icon_warship(dr, x, y, s):
                 (x + 14, y + 62)], fill=STEEL)
     dr.line([x, y + 70, x + 84, y + 70], fill=OCEAN, width=3)
     dr.line([x + 8, y + 76, x + 76, y + 76], fill=OCEAN, width=2)
+    # wake trailing behind the stern
+    dr.line([x + 2, y + 64, x - 4, y + 70], fill=(140, 180, 220), width=2)
+    dr.line([x + 6, y + 68, x + 0, y + 74], fill=(140, 180, 220), width=2)
+    # red light on the mast top
+    dr.ellipse([x + 39, y + 10, x + 43, y + 14], fill=RED)
 
 
 def icon_badge(dr, x, y, s):
@@ -165,6 +251,8 @@ def icon_badge(dr, x, y, s):
     # handcuff rings
     dr.ellipse([x + 56, y + 56, x + 76, y + 76], outline=STEEL, width=4)
     dr.ellipse([x + 64, y + 62, x + 84, y + 82], outline=STEEL, width=4)
+    # chain link joining the two rings
+    dr.line([x + 68, y + 68, x + 74, y + 72], fill=STEEL, width=3)
 
 
 def icon_planet(dr, x, y, s):
@@ -176,18 +264,22 @@ def icon_planet(dr, x, y, s):
     dr.ellipse([cxp - 14, cyp - 8, cxp - 6, cyp], fill=(120, 100, 88))
     dr.ellipse([cxp + 4, cyp + 6, cxp + 12, cyp + 14], fill=(120, 100, 88))
     dr.ellipse([cxp + 8, cyp - 14, cxp + 14, cyp - 8], fill=(120, 100, 88))
+    dr.ellipse([cxp - 4, cyp + 14, cxp + 4, cyp + 20], fill=(120, 100, 88))
+    # small gold sparkle near the trail
+    dr.ellipse([x + 58, y + 20, x + 62, y + 24], fill=GOLD)
     # spacecraft dot with trail
     dr.line([x + 66, y + 12, x + 76, y + 6], fill=INK, width=2)
     dr.polygon([(x + 76, y + 2), (x + 84, y + 8), (x + 76, y + 12)], fill=RED)
 
 
 def icon_factory(dr, x, y, s):
-    # flame + smoke
-    dr.ellipse([x + 52, y + 2, x + 64, y + 14], fill=(150, 150, 150))
+    # smoke from the taller chimney
+    dr.ellipse([x + 54, y - 2, x + 68, y + 12], fill=(150, 150, 150))
+    dr.ellipse([x + 58, y - 6, x + 70, y + 4], fill=(170, 170, 170))
     dr.polygon([(x + 14, y + 34), (x + 22, y + 14), (x + 30, y + 34)], fill=(230, 120, 20))
     dr.polygon([(x + 18, y + 34), (x + 22, y + 22), (x + 26, y + 34)], fill=(250, 200, 40))
-    # chimney
-    dr.rectangle([x + 58, y + 18, x + 70, y + 56], fill=STEEL, outline=INK, width=1)
+    # chimney (taller than v2)
+    dr.rectangle([x + 58, y + 10, x + 70, y + 56], fill=STEEL, outline=INK, width=1)
     # sawtooth-roof factory body
     dr.polygon([(x + 6, y + 56), (x + 6, y + 36), (x + 18, y + 28), (x + 30, y + 36),
                 (x + 42, y + 28), (x + 54, y + 36), (x + 58, y + 36), (x + 58, y + 56),
