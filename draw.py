@@ -60,15 +60,14 @@ d.line([24, 172, W - 24, 172], fill=INK, width=1)
 # ---------------------------------------------------------------- hero story
 hx, hy = 24, 186
 d.text((hx, hy), "CLIMATE SUMMIT", font=font(DJV + "DejaVuSans-Bold.ttf", 24), fill=RED)
-f_head = font(DJV + "DejaVuSerif-Bold.ttf", 62)
-d.text((hx, hy + 36), "COP31 TALKS", font=f_head, fill=INK)
-d.text((hx, hy + 104), "COLLAPSE", font=f_head, fill=INK)
-f_sub = font(LIB + "LiberationSans-Regular.ttf", 26)
-d.text((hx, hy + 182), "Climate deal fails as nations split", font=f_sub, fill=MUTED)
-d.text((hx, hy + 214), "over fossil fuels", font=f_sub, fill=MUTED)
+f_head = font(DJV + "DejaVuSerif-Bold.ttf", 60)
+d.text((hx, hy + 34), "COP31 TALKS", font=f_head, fill=INK)
+d.text((hx, hy + 96), "COLLAPSE", font=f_head, fill=INK)
+f_sub = font(LIB + "LiberationSans-Regular.ttf", 24)
+d.text((hx, hy + 170), "Climate deal fails as nations split over fossil fuels", font=f_sub, fill=MUTED)
 
 # cracked globe illustration (right of the hero text)
-cx, cy, r = 840, 296, 105
+cx, cy, r = 840, 280, 105
 layer = Image.new("RGBA", (2 * r + 8, 2 * r + 8), (0, 0, 0, 0))
 ld = ImageDraw.Draw(layer)
 ld.ellipse([4, 4, 2 * r + 4, 2 * r + 4], fill=OCEAN + (255,))
@@ -86,8 +85,8 @@ crack = [(cx - 15, cy - r + 8), (cx + 6, cy - 58), (cx - 12, cy - 18),
 d.line(crack, fill=INK, width=6, joint="curve")
 
 # ---------------------------------------------------------------- section header
-d.text((24, 436), "AROUND THE WORLD", font=font(DJV + "DejaVuSans-Bold.ttf", 24), fill=INK)
-d.line([24, 466, W - 24, 466], fill=INK, width=2)
+d.text((24, 392), "AROUND THE WORLD", font=font(DJV + "DejaVuSans-Bold.ttf", 24), fill=INK)
+d.line([24, 420, W - 24, 420], fill=INK, width=2)
 
 # ---------------------------------------------------------------- story cards
 CARDS = [
@@ -200,27 +199,62 @@ def icon_factory(dr, x, y, s):
 ICONS = {"tanker": icon_tanker, "flats": icon_flats, "warship": icon_warship,
          "badge": icon_badge, "planet": icon_planet, "factory": icon_factory}
 
-grid_x, grid_y = 24, 478
-card_w, card_h, gap = 480, 148, 16
-f_label = font(LIB + "LiberationSans-Bold.ttf", 30)
+grid_x, grid_y = 24, 430
+card_w, card_h, gap = 480, 124, 12
+f_label = font(LIB + "LiberationSans-Bold.ttf", 28)
 for i, (label, caption, kind) in enumerate(CARDS):
     col, row = i % 2, i // 2
     x = grid_x + col * (card_w + gap)
     y = grid_y + row * (card_h + gap)
     d.rounded_rectangle([x, y, x + card_w, y + card_h], radius=8,
                         fill=CARD_BG, outline=CARD_BORDER, width=2)
-    ICONS[kind](d, x + 14, y + 12, 84)
-    d.text((x + 112, y + 20), label, font=f_label, fill=INK)
+    ICONS[kind](d, x + 14, y + 8, 84)
+    d.text((x + 112, y + 14), label, font=f_label, fill=INK)
     lw = f_label.getlength(label)
-    d.line([x + 112, y + 58, x + 112 + lw, y + 58], fill=RED, width=3)
+    d.line([x + 112, y + 48, x + 112 + lw, y + 48], fill=RED, width=3)
     f_cap = fit(LIB + "LiberationSans-Regular.ttf", caption, card_w - 28, 20, minimum=15)
-    d.text((x + 14, y + 112), caption, font=f_cap, fill=(40, 40, 40))
+    d.text((x + 14, y + 96), caption, font=f_cap, fill=(40, 40, 40))
+
+# ---------------------------------------------------------------- also today
+d.text((24, 838), "ALSO TODAY", font=font(DJV + "DejaVuSans-Bold.ttf", 22), fill=INK)
+d.line([24, 864, W - 24, 864], fill=INK, width=2)
+
+ALSO = [
+    ("POLAND", "Missiles confirmed Russian as NATO meets"),
+    ("UN", "128 states agree to curb killer robots"),
+    ("ISRAEL", "Netanyahu\u2013Eisenkot talks end without a deal"),
+    ("MARKETS", "Asian shares slide as COP31 fails"),
+    ("SUDAN", "Drone strikes hit Khartoum, UN facility damaged"),
+    ("JAPAN", "Shuri Castle reopens seven years after fire"),
+    ("USA", "Democrats win House majority, biggest since 1992"),
+    ("SPORT", "UK set to host 2035 Women's World Cup"),
+]
+# Two columns, four rows: eight more verified stories of the day, so the
+# page carries 15 stories across regions and fields instead of seven.
+also_w = 480
+also_size = 19
+while also_size > 14:
+    fb = font(LIB + "LiberationSans-Bold.ttf", also_size)
+    fr = font(LIB + "LiberationSans-Regular.ttf", also_size)
+    if all(fb.getlength(lead + " \u2014 ") + fr.getlength(clause) <= also_w
+           for lead, clause in ALSO):
+        break
+    also_size -= 1
+f_also_b = font(LIB + "LiberationSans-Bold.ttf", also_size)
+f_also = font(LIB + "LiberationSans-Regular.ttf", also_size)
+for j, (lead, clause) in enumerate(ALSO):
+    col, row = j % 2, j // 2
+    ax = 24 + col * 496
+    ay = 876 + row * 24
+    d.text((ax, ay), lead + " \u2014 ", font=f_also_b, fill=INK)
+    d.text((ax + f_also_b.getlength(lead + " \u2014 "), ay), clause,
+           font=f_also, fill=(40, 40, 40))
 
 # ---------------------------------------------------------------- sport strip
-d.line([24, 954, W - 24, 954], fill=INK, width=2)
+d.line([24, 978, W - 24, 978], fill=INK, width=2)
 f_sport_b = font(LIB + "LiberationSans-Bold.ttf", 22)
 f_sport = font(LIB + "LiberationSans-Regular.ttf", 22)
-sx, sy = 24, 968
+sx, sy = 24, 990
 d.text((sx, sy), "SPORT: ", font=f_sport_b, fill=INK)
 d.text((sx + f_sport_b.getlength("SPORT: "), sy),
        "Alcaraz wins ATP Finals \u00b7 Liverpool beat Man United",
